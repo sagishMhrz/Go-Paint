@@ -15,7 +15,7 @@ public class PainterDetails {
     @Column(name = "DETAILS_ID")
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "USER_ID", nullable = false)
     private User user;
 
@@ -30,11 +30,29 @@ public class PainterDetails {
     @Column(name = "HOURLY_RATE")
     private Double hourlyRate;
 
+    @Column(name = "PRICE_MIN")
+    private Double priceMin;
+
+    @Column(name = "PRICE_MAX")
+    private Double priceMax;
+
     @Column(name = "ABOUT", columnDefinition = "TEXT")
     private String about;
 
-    @Column(name = "IS_AVAILABLE")
-    private boolean isAvailable = true;
+    @Column(name = "RATING")
+    private Double rating;
+
+    @Column(name = "REVIEWS")
+    private Integer reviews;
+
+    @Column(name = "COMPLETED_PROJECTS")
+    private Integer completedProjects;
+
+    @Column(name = "IS_VERIFIED", nullable = false)
+    private Boolean isVerified = false;
+
+    @Column(name = "IS_AVAILABLE", nullable = false)
+    private Boolean isAvailable = true;
 
     @Column(name = "CREATED_AT", updatable = false)
     private LocalDateTime createdAt;

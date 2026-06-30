@@ -335,29 +335,50 @@ export default function PainterDashboard() {
   const navigate = useNavigate();
   const [bidFilter, setBidFilter] = useState("All");
   const [assignedProjects, setAssignedProjects] = useState([]);
+  const [myBids, setMyBids] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [painterDetails, setPainterDetails] = useState(null);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
+    console.log("PainterDashboard: userId from localStorage:", userId);
     if (!userId) {
       navigate("/login");
       return;
     }
-    const fetchAssignedProjects = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(
+        // Fetch assigned projects
+        console.log("Fetching assigned projects for painterId:", userId);
+        const assignedProjectsResponse = await axios.get(
           `http://localhost:8080/api/projects/painter/${userId}/assigned`
         );
+        console.log("Assigned projects response:", assignedProjectsResponse.data);
         
-        // We need to get the accepted bid amount for each project to display price
+        // Fetch bids
+        console.log("Fetching bids for painterId:", userId);
+        const bidsResponse = await axios.get(
+          `http://localhost:8080/api/bids/painter/${userId}`
+        );
+        console.log("Bids response:", bidsResponse.data);
+
+        // Fetch all painters to get painter details (for ratings, etc.)
+        console.log("Fetching all painters for details");
+        const paintersResponse = await axios.get("http://localhost:8080/api/users/painters");
+        console.log("All painters response:", paintersResponse.data);
+        const currentPainterDetails = paintersResponse.data.find(p => p.user?.id?.toString() === userId);
+        console.log("Current painter details:", currentPainterDetails);
+        setPainterDetails(currentPainterDetails);
+
+        // Process assigned projects
         const projectsWithBidInfo = await Promise.all(
-          response.data.map(async (project) => {
+          assignedProjectsResponse.data.map(async (project) => {
             // Get all bids for this project
-            const bidsResponse = await axios.get(
+            const bidsForProjectResponse = await axios.get(
               `http://localhost:8080/api/bids/project/${project.id}`
             );
             // Find the accepted bid
-            const acceptedBid = bidsResponse.data.find(
+            const acceptedBid = bidsForProjectResponse.data.find(
               (bid) => bid.status === "ACCEPTED"
             );
             
@@ -370,20 +391,120 @@ export default function PainterDashboard() {
             };
           })
         );
+        console.log("Processed assigned projects:", projectsWithBidInfo);
         setAssignedProjects(projectsWithBidInfo);
+
+        // Process bids
+        const processedBids = bidsResponse.data.map((bid) => {
+          let statusClass = "bg-gray-100 text-gray-600 border-gray-200";
+          let filter = "All";
+          let action = "View Project";
+          
+          switch(bid.status) {
+            case "PENDING":
+              statusClass = "bg-gray-100 text-gray-600 border-gray-200";
+              filter = "Pending";
+              action = "Edit Bid";
+              break;
+            case "ACCEPTED":
+              statusClass = "bg-emerald-100 text-emerald-700 border-emerald-200";
+              filter = "Awarded"; // Changed to match the filter in the UI
+              break;
+            case "REJECTED":
+              statusClass = "bg-red-100 text-red-600 border-red-200";
+              filter = "Rejected";
+              break;
+          }
+
+          return {
+            id: bid.id,
+            title: bid.project?.title || "Unknown Project",
+            status: bid.status,
+            statusClass,
+            client: bid.project?.user?.fullName || "Unknown Client",
+            date: bid.createdAt ? new Date(bid.createdAt).toLocaleDateString() : "Unknown",
+            amount: `NPR ${bid.amount}`,
+            action,
+            filter,
+          };
+        });
+        console.log("Processed bids:", processedBids);
+        setMyBids(processedBids);
+
       } catch (err) {
-        console.error("Failed to fetch assigned projects", err);
+        console.error("Failed to fetch data", err);
+        console.error("Error details:", err.response?.data || err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchAssignedProjects();
+    fetchData();
   }, [navigate]);
 
   const filteredBids =
     bidFilter === "All"
-      ? MY_BIDS
-      : MY_BIDS.filter((b) => b.filter === bidFilter);
+      ? myBids
+      : myBids.filter((b) => b.filter === bidFilter);
+
+  // Calculate dynamic stats
+  const activeBids = myBids.filter(b => b.status === "PENDING").length;
+  const assignedProjectsCount = assignedProjects.length;
+  const completedProjectsCount = assignedProjects.filter(p => p.status === "Completed").length;
+  const rating = painterDetails?.rating || 0;
+  const reviews = painterDetails?.reviews || 0;
+  let totalEarnings = 0;
+  // Calculate total earnings from accepted bids
+  myBids.forEach(bid => {
+    if (bid.status === "ACCEPTED") {
+      const amountStr = bid.amount.replace("NPR ", "").replace(",", "");
+      totalEarnings += parseFloat(amountStr) || 0;
+    }
+  });
+
+  const dynamicSidebarStats = [
+    {
+      label: "Active Bids",
+      value: activeBids.toString(),
+      iconBg: "bg-orange-100",
+      iconColor: "text-[#FF8022]",
+      icon: "bid",
+    },
+    {
+      label: "Assigned Projects",
+      value: assignedProjectsCount.toString(),
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      icon: "folder",
+    },
+    {
+      label: "Completed",
+      value: completedProjectsCount.toString(),
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      icon: "check",
+    },
+    {
+      label: "Rating",
+      value: `${rating.toFixed(1)}★`,
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      icon: "star",
+    },
+    {
+      label: "Response Rate",
+      value: "96%",
+      iconBg: "bg-violet-100",
+      iconColor: "text-violet-600",
+      icon: "clock",
+    },
+    {
+      label: "Reviews",
+      value: reviews.toString(),
+      iconBg: "bg-pink-100",
+      iconColor: "text-pink-500",
+      icon: "message",
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 font-heading sm:px-6 lg:px-8 lg:py-8">
@@ -689,23 +810,23 @@ export default function PainterDashboard() {
                   Total Earnings
                 </p>
                 <p className="mt-1 font-heading text-3xl font-bold sm:text-4xl">
-                  NPR 1245K
+                  NPR {totalEarnings.toLocaleString()}
                 </p>
                 <div className="mt-4 space-y-1.5 border-t border-neutral-700 pt-4 text-sm">
                   <p className="flex justify-between text-neutral-300">
                     <span>This Month</span>
-                    <span className="font-semibold text-white">NPR 85K</span>
+                    <span className="font-semibold text-white">NPR 0</span>
                   </p>
                   <p className="flex justify-between text-neutral-300">
                     <span>Avg per Project</span>
-                    <span className="font-semibold text-white">NPR 26K</span>
+                    <span className="font-semibold text-white">NPR 0</span>
                   </p>
                 </div>
               </section>
 
               {/* Stats grid */}
               <section className="grid grid-cols-2 gap-3">
-                {SIDEBAR_STATS.map((stat) => (
+                {dynamicSidebarStats.map((stat) => (
                   <div
                     key={stat.label}
                     className="rounded-xl border border-neutral-100 bg-white p-4 shadow-sm"

@@ -18,6 +18,7 @@ import PainterLayout from "./components/painter/Layout";
 import PainterDashboard from "./pages/painter/PainterDashboard";
 import BrowseProject from "./pages/painter/BrowseProject";
 import MyBids from "./pages/painter/MyBids";
+import PainterViewBids from "./pages/painter/ViewBids";
 import PainterProfile from "./pages/painter/PainterProfile";
 import "./App.css";
 
@@ -37,6 +38,7 @@ function App() {
         <Route path="/painter-dashboard" element={<PainterDashboard />} />
         <Route path="/browse-projects" element={<BrowseProject />} />
         <Route path="/my-bids" element={<MyBids />} />
+        <Route path="/my-bids/:bidId" element={<PainterViewBids />} />
         <Route path="/painter-profile" element={<PainterProfile />} />
       </Route>
       <Route path="/" element={<Layout />}>

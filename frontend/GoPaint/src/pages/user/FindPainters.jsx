@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 const LOCATIONS = [
   "All",
@@ -18,81 +19,6 @@ const SPECIALTIES = [
   "Texture",
   "Waterproofing",
   "Luxury Finish",
-];
-
-const PAINTERS = [
-  {
-    id: "rajesh",
-    name: "Rajesh Shrestha",
-    location: "Kathmandu",
-    verified: true,
-    rating: 4.9,
-    reviews: 121,
-    completedProjects: 214,
-    priceMin: 15000,
-    priceMax: 45000,
-    specialties: ["Interior", "Exterior", "Texture"],
-  },
-  {
-    id: "suman",
-    name: "Suman Tamang",
-    location: "Lalitpur",
-    verified: true,
-    rating: 4.8,
-    reviews: 89,
-    completedProjects: 176,
-    priceMin: 12000,
-    priceMax: 30000,
-    specialties: ["Decorative", "Waterproofing", "Texture"],
-  },
-  {
-    id: "bikash",
-    name: "Bikash Gurung",
-    location: "Pokhara",
-    verified: true,
-    rating: 4.7,
-    reviews: 67,
-    completedProjects: 143,
-    priceMin: 18000,
-    priceMax: 55000,
-    specialties: ["Exterior", "Waterproofing", "Luxury Finish"],
-  },
-  {
-    id: "sita",
-    name: "Sita Maharjan",
-    location: "Bhaktapur",
-    verified: true,
-    rating: 4.9,
-    reviews: 64,
-    completedProjects: 156,
-    priceMin: 12500,
-    priceMax: 32000,
-    specialties: ["Interior", "Decorative"],
-  },
-  {
-    id: "anil",
-    name: "Anil Thapa",
-    location: "Chitwan",
-    verified: true,
-    rating: 4.8,
-    reviews: 203,
-    completedProjects: 312,
-    priceMin: 18000,
-    priceMax: 60000,
-    specialties: ["Exterior", "Texture", "Waterproofing"],
-  },
-  {
-    id: "priya",
-    name: "Priya Sharma",
-    location: "Kathmandu",
-    verified: true,
-    rating: 4.9,
-    reviews: 98,
-    completedProjects: 107,
-    priceMin: 10000,
-    priceMax: 28000,
-    specialties: ["Interior", "Luxury Finish"],
-  },
 ];
 
 function formatNpr(n) {
@@ -196,25 +122,71 @@ export default function FindPainters() {
   const [activeLocation, setActiveLocation] = useState("All");
   const [activeSpecialty, setActiveSpecialty] = useState("All");
   const [minRating, setMinRating] = useState("Any");
+  const [painters, setPainters] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPainters = async () => {
+      try {
+        console.log("Fetching painters from http://localhost:8080/api/users/painters");
+        const response = await axios.get("http://localhost:8080/api/users/painters");
+        console.log("Painters API response:", response.data);
+        console.log("Number of painters:", response.data.length);
+        response.data.forEach((painterDetails, index) => {
+          console.log(`Painter ${index}:`, painterDetails);
+        });
+        setPainters(response.data);
+      } catch (err) {
+        console.error("Failed to fetch painters", err);
+        console.error("Error details:", err.response?.data || err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPainters();
+  }, []);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     const ratingFloor =
       minRating === "Any" ? null : Number.parseFloat(minRating);
 
-    return PAINTERS.filter((p) => {
+    const mappedPainters = painters.map((painterDetails) => {
+      const user = painterDetails.user;
+      if (!user) {
+        console.warn("PainterDetails has no user:", painterDetails);
+        return null;
+      }
+      const painter = {
+        id: user.id,
+        name: user.fullName || "Unknown Painter",
+        location: user.location?.city || "Unknown Location",
+        verified: painterDetails.isVerified || false,
+        rating: painterDetails.rating || 0,
+        reviews: painterDetails.reviews || 0,
+        completedProjects: painterDetails.completedProjects || 0,
+        priceMin: painterDetails.priceMin || 0,
+        priceMax: painterDetails.priceMax || 0,
+        specialties: painterDetails.specialties || [],
+      };
+      return painter;
+    }).filter(painter => painter !== null);
+
+    console.log("Mapped painters:", mappedPainters);
+
+    return mappedPainters.filter((painter) => {
       const matchesLocation =
-        activeLocation === "All" ? true : p.location === activeLocation;
+        activeLocation === "All" ? true : painter.location === activeLocation;
 
       const matchesSpecialty =
         activeSpecialty === "All"
           ? true
-          : p.specialties.includes(activeSpecialty);
+          : painter.specialties.includes(activeSpecialty);
 
-      const matchesRating = ratingFloor ? p.rating >= ratingFloor : true;
+      const matchesRating = ratingFloor ? painter.rating >= ratingFloor : true;
 
       const matchesQuery = q
-        ? `${p.name} ${p.location} ${p.specialties.join(" ")}`
+        ? `${painter.name} ${painter.location} ${painter.specialties.join(" ")}`
             .toLowerCase()
             .includes(q)
         : true;
@@ -223,7 +195,15 @@ export default function FindPainters() {
         matchesLocation && matchesSpecialty && matchesRating && matchesQuery
       );
     });
-  }, [activeLocation, activeSpecialty, minRating, query]);
+  }, [activeLocation, activeSpecialty, minRating, query, painters]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg text-slate-600">Loading painters...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -341,81 +321,87 @@ export default function FindPainters() {
             </span>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((p) => (
-              <article
-                key={p.id}
-                className="flex flex-col rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <InitialsAvatar name={p.name} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-slate-900">
-                          {p.name}
-                        </h3>
-                        {p.verified ? <VerifiedIcon /> : null}
-                      </div>
-                      <p className="mt-0.5 text-sm text-slate-400">
-                        {p.location}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2 text-sm">
-                        <StarRow rating={p.rating} />
-                        <span className="text-sm text-slate-400">
-                          ({p.reviews} reviews)
-                        </span>
+          {results.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-lg text-slate-600">No painters found.</p>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {results.map((p) => (
+                <article
+                  key={p.id}
+                  className="flex flex-col rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <InitialsAvatar name={p.name} />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-bold text-slate-900">
+                            {p.name}
+                          </h3>
+                          {p.verified ? <VerifiedIcon /> : null}
+                        </div>
+                        <p className="mt-0.5 text-sm text-slate-400">
+                          {p.location}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-sm">
+                          <StarRow rating={p.rating} />
+                          <span className="text-sm text-slate-400">
+                            ({p.reviews} reviews)
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {p.specialties.slice(0, 3).map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#c2410c]"
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {p.specialties.slice(0, 3).map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-[#c2410c]"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="my-5 border-t border-neutral-100" />
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-400">Completed</p>
+                      <p className="text-base font-bold text-slate-900">
+                        {p.completedProjects} projects
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">Price Range</p>
+                      <p className="text-base font-bold text-slate-900">
+                        NPR {formatNpr(p.priceMin)} - {formatNpr(p.priceMax)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-neutral-200 bg-white py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-neutral-50"
                     >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="my-5 border-t border-neutral-100" />
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-xs text-slate-400">Completed</p>
-                    <p className="text-base font-bold text-slate-900">
-                      {p.completedProjects} projects
-                    </p>
+                      View Profile
+                    </button>
+                    <Link
+                      to={`/hire-painter/${p.id}`}
+                      state={{ painter: p }}
+                      className="rounded-xl bg-[#FF8022] py-3 text-center text-sm font-bold text-white transition hover:bg-[#e8721a]"
+                    >
+                      Hire Now
+                    </Link>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400">Price Range</p>
-                    <p className="text-base font-bold text-slate-900">
-                      NPR {formatNpr(p.priceMin)} - {formatNpr(p.priceMax)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    className="rounded-xl border border-neutral-200 bg-white py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-neutral-50"
-                  >
-                    View Profile
-                  </button>
-                  <Link
-                    to={`/hire-painter/${p.id}`}
-                    state={{ painter: p }}
-                    className="rounded-xl bg-[#FF8022] py-3 text-center text-sm font-bold text-white transition hover:bg-[#e8721a]"
-                  >
-                    Hire Now
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

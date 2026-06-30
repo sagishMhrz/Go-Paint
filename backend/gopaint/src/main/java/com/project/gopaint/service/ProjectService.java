@@ -54,10 +54,14 @@ public class ProjectService {
     }
 
     public List<Project> getAssignedProjectsForPainter(Long painterId) {
+        System.out.println("getAssignedProjectsForPainter called for painterId: " + painterId);
         User painter = userRepository.findById(painterId)
                 .orElseThrow(() -> new RuntimeException("Painter not found"));
+        System.out.println("Found painter: " + painter.getFullName());
 
         List<Bid> acceptedBids = bidRepository.findByPainterAndStatus(painter, BidStatus.ACCEPTED);
+        System.out.println("Found " + acceptedBids.size() + " accepted bids for this painter");
+        acceptedBids.forEach(bid -> System.out.println("Bid: " + bid.getId() + " - Project: " + bid.getProject().getTitle()));
 
         return acceptedBids.stream()
                 .map(Bid::getProject)

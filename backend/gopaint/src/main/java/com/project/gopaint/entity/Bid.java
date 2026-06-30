@@ -16,9 +16,8 @@ public class Bid {
     @Column(name = "bid_id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "project_id", nullable = false)
-    @JsonIgnore
     private Project project;
 
     @ManyToOne(fetch = FetchType.EAGER)

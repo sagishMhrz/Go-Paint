@@ -300,6 +300,7 @@ export default function UserDashboard() {
   const navigate = useNavigate();
   const [projectFilter, setProjectFilter] = useState("All");
   const [projects, setProjects] = useState([]);
+  const [recentBids, setRecentBids] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -308,17 +309,42 @@ export default function UserDashboard() {
       navigate("/login");
       return;
     }
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8080/api/projects/user/${userId}`);
-        setProjects(response.data);
+        // Fetch user's projects
+        const projectsResponse = await axios.get(`http://localhost:8080/api/projects/user/${userId}`);
+        const userProjects = projectsResponse.data;
+        setProjects(userProjects);
+
+        // Fetch recent bids from all user's projects
+        const allBids = [];
+        for (const project of userProjects) {
+          try {
+            const bidsResponse = await axios.get(`http://localhost:8080/api/bids/project/${project.id}`);
+            const projectBids = bidsResponse.data.map(bid => ({
+              id: bid.id,
+              name: bid.painter?.fullName || "Unknown Painter",
+              rating: 4, // Default since we don't have painter ratings in bid
+              amount: `NPR ${bid.amount}`,
+              time: bid.createdAt ? new Date(bid.createdAt).toLocaleDateString() : "Recently",
+              initials: bid.painter?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2) || "UP",
+            }));
+            allBids.push(...projectBids);
+          } catch (e) {
+            // Ignore errors for individual project bids
+          }
+        }
+        // Sort bids by date (newest first) and take top 3
+        allBids.sort((a, b) => new Date(b.time) - new Date(a.time));
+        setRecentBids(allBids.slice(0, 3));
+
       } catch (err) {
-        console.error("Failed to fetch projects", err);
+        console.error("Failed to fetch data", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProjects();
+    fetchData();
   }, [navigate]);
 
   const getStatusClass = (status) => {
@@ -338,6 +364,62 @@ export default function UserDashboard() {
       ? projects
       : projects.filter((p) => p.status === projectFilter);
 
+  // Calculate dynamic stats
+  const activeProjects = projects.filter(p => p.status === "In Progress" || p.status === "Bidding").length;
+  const completedProjects = projects.filter(p => p.status === "Completed").length;
+  const totalSpent = "NPR 0"; // We can calculate this once we have accepted bid amounts
+
+  const dynamicStats = [
+    {
+      label: "Active Projects",
+      value: activeProjects.toString(),
+      sub: "+0 this week",
+      iconBg: "bg-orange-100",
+      iconColor: "text-[#FF8022]",
+      icon: "folder",
+    },
+    {
+      label: "Completed Projects",
+      value: completedProjects.toString(),
+      sub: "All time",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      icon: "check",
+    },
+    {
+      label: "Total Spent",
+      value: totalSpent,
+      sub: "Across all projects",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      icon: "wallet",
+    },
+    {
+      label: "Saved Colors",
+      value: "18",
+      sub: "+3 this week",
+      iconBg: "bg-pink-100",
+      iconColor: "text-pink-500",
+      icon: "heart",
+    },
+    {
+      label: "Palettes Created",
+      value: "5",
+      sub: "Custom palettes",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      icon: "palette",
+    },
+    {
+      label: "Visualizations",
+      value: "4",
+      sub: "Saved designs",
+      iconBg: "bg-sky-100",
+      iconColor: "text-sky-600",
+      icon: "image",
+    },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
       <Header forceScrolled />
@@ -354,7 +436,7 @@ export default function UserDashboard() {
 
           {/* Stats row */}
           <div className="-mx-4 mb-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 xl:grid-cols-6">
-            {STATS.map((stat) => (
+            {dynamicStats.map((stat) => (
               <div
                 key={stat.label}
                 className="min-w-[140px] shrink-0 snap-start rounded-xl border border-neutral-100 bg-white p-4 shadow-sm sm:min-w-0"
@@ -503,38 +585,42 @@ export default function UserDashboard() {
                   </button>
                 </div>
                 <ul className="divide-y divide-neutral-100">
-                  {RECENT_BIDS.map((bid) => (
-                    <li
-                      key={bid.name}
-                      className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-xs font-bold text-slate-700">
-                          {bid.initials}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {bid.name}
-                          </p>
-                          <StarRating rating={bid.rating} />
+                  {recentBids.length > 0 ? (
+                    recentBids.map((bid) => (
+                      <li
+                        key={bid.id}
+                        className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-xs font-bold text-slate-700">
+                            {bid.initials}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {bid.name}
+                            </p>
+                            <StarRating rating={bid.rating} />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 sm:justify-end">
-                        <div className="text-right sm:text-left">
-                          <p className="text-sm font-bold text-slate-900">
-                            {bid.amount}
-                          </p>
-                          <p className="text-xs text-slate-400">{bid.time}</p>
+                        <div className="flex items-center justify-between gap-4 sm:justify-end">
+                          <div className="text-right sm:text-left">
+                            <p className="text-sm font-bold text-slate-900">
+                              {bid.amount}
+                            </p>
+                            <p className="text-xs text-slate-400">{bid.time}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-neutral-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-neutral-50"
+                          >
+                            Review
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-neutral-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-neutral-50"
-                        >
-                          Review
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="py-4 text-center text-slate-500 text-sm">No recent bids</li>
+                  )}
                 </ul>
               </section>
 

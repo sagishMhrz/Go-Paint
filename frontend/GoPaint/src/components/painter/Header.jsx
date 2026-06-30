@@ -87,6 +87,9 @@ export default function Header() {
     if (linkHash) {
       return pathname === path && hash === `#${linkHash}`;
     }
+    if (href === "/my-bids") {
+      return pathname === href || pathname.startsWith("/my-bids/");
+    }
     return pathname === href;
   };
 

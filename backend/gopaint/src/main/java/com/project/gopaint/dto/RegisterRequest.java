@@ -15,4 +15,10 @@ public class RegisterRequest {
     private String addressLine;
     private List<String> specialties;
     private String experience;
+    private Double priceMin;
+    private Double priceMax;
+    private Double rating;
+    private Integer reviews;
+    private Integer completedProjects;
+    private boolean verified;
 }

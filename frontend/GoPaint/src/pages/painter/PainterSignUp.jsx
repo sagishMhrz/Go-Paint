@@ -179,6 +179,12 @@ export default function PainterSignUp() {
   const [success, setSuccess] = useState("");
   const [specialties, setSpecialties] = useState([]);
   const [experience, setExperience] = useState("");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [rating, setRating] = useState("");
+  const [reviews, setReviews] = useState("");
+  const [completedProjects, setCompletedProjects] = useState("");
+  const [verified, setVerified] = useState(false);
 
   const handleContinue = () => {
     setStep(2);
@@ -212,6 +218,12 @@ export default function PainterSignUp() {
           addressLine: "",
           specialties,
           experience,
+          priceMin: priceMin ? Number(priceMin) : null,
+          priceMax: priceMax ? Number(priceMax) : null,
+          rating: rating ? Number(rating) : null,
+          reviews: reviews ? Number(reviews) : null,
+          completedProjects: completedProjects ? Number(completedProjects) : null,
+          verified,
         },
       );
 
@@ -476,6 +488,111 @@ export default function PainterSignUp() {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="mb-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <label
+                        htmlFor="painter-signup-price-min"
+                        className="mb-1 block text-xs font-medium text-gray-600"
+                      >
+                        Minimum Price (NPR)
+                      </label>
+                      <input
+                        id="painter-signup-price-min"
+                        type="number"
+                        placeholder="e.g. 10000"
+                        value={priceMin}
+                        onChange={(e) => setPriceMin(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="painter-signup-price-max"
+                        className="mb-1 block text-xs font-medium text-gray-600"
+                      >
+                        Maximum Price (NPR)
+                      </label>
+                      <input
+                        id="painter-signup-price-max"
+                        type="number"
+                        placeholder="e.g. 50000"
+                        value={priceMax}
+                        onChange={(e) => setPriceMax(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3 grid grid-cols-3 gap-2">
+                    <div>
+                      <label
+                        htmlFor="painter-signup-rating"
+                        className="mb-1 block text-xs font-medium text-gray-600"
+                      >
+                        Rating
+                      </label>
+                      <input
+                        id="painter-signup-rating"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="5"
+                        placeholder="e.g. 4.5"
+                        value={rating}
+                        onChange={(e) => setRating(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="painter-signup-reviews"
+                        className="mb-1 block text-xs font-medium text-gray-600"
+                      >
+                        Reviews
+                      </label>
+                      <input
+                        id="painter-signup-reviews"
+                        type="number"
+                        placeholder="e.g. 50"
+                        value={reviews}
+                        onChange={(e) => setReviews(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="painter-signup-completed-projects"
+                        className="mb-1 block text-xs font-medium text-gray-600"
+                      >
+                        Completed Projects
+                      </label>
+                      <input
+                        id="painter-signup-completed-projects"
+                        type="number"
+                        placeholder="e.g. 100"
+                        value={completedProjects}
+                        onChange={(e) => setCompletedProjects(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="painter-signup-verified"
+                      checked={verified}
+                      onChange={(e) => setVerified(e.target.checked)}
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#3B82F6] focus:ring-[#3B82F6]/30"
+                    />
+                    <label
+                      htmlFor="painter-signup-verified"
+                      className="text-xs font-medium text-gray-600"
+                    >
+                      Verified Painter
+                    </label>
                   </div>
 
                   <label className="mb-4 flex cursor-pointer items-start gap-2.5">

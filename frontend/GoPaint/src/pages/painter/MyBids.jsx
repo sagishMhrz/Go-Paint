@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const BID_FILTERS = ["All", "PENDING", "ACCEPTED", "REJECTED"];
@@ -60,8 +61,8 @@ function StatusBadge({ status }) {
   );
 }
 
-function BidActions({ status }) {
-  if (status === "PENDING") {
+function BidActions({ bid, onView }) {
+  if (bid.status === "PENDING") {
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -73,6 +74,7 @@ function BidActions({ status }) {
         </button>
         <button
           type="button"
+          onClick={() => onView(bid)}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-neutral-100 sm:text-sm"
         >
           <ViewIcon />
@@ -85,6 +87,7 @@ function BidActions({ status }) {
   return (
     <button
       type="button"
+      onClick={() => onView(bid)}
       className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-neutral-100 sm:text-sm"
     >
       <ViewIcon />
@@ -93,7 +96,7 @@ function BidActions({ status }) {
   );
 }
 
-function BidCard({ bid }) {
+function BidCard({ bid, onView }) {
   return (
     <article className="rounded-xl border border-neutral-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -110,14 +113,14 @@ function BidCard({ bid }) {
         </div>
         <div>
           <dt className="text-xs font-medium text-slate-400">Bid Amount</dt>
-          <dd className="mt-0.5 font-bold text-slate-900">{bid.amount}</dd>
+          <dd className="mt-0.5 font-bold text-slate-900">{bid.amountDisplay}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-slate-400">Timeline</dt>
           <dd className="mt-0.5 text-slate-700">{bid.timeline}</dd>
         </div>
         <div className="flex items-end">
-          <BidActions status={bid.status} />
+          <BidActions bid={bid} onView={onView} />
         </div>
       </dl>
     </article>
@@ -125,9 +128,14 @@ function BidCard({ bid }) {
 }
 
 export default function MyBids() {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("All");
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleViewBid = (bid) => {
+    navigate(`/my-bids/${bid.id}`, { state: { bid } });
+  };
 
   useEffect(() => {
     const fetchBids = async () => {
@@ -139,13 +147,17 @@ export default function MyBids() {
         }
         const response = await axios.get(`http://localhost:8080/api/bids/painter/${userId}`);
         setBids(response.data.map(b => ({
-          ...b,
+          id: b.id,
           title: b.project?.title || "Unknown Project",
           postedDate: b.createdAt ? new Date(b.createdAt).toLocaleDateString() : "N/A",
           client: b.project?.user?.fullName || "Unknown Client",
-          amount: `NPR ${b.amount}`,
+          amount: b.amount,
+          amountDisplay: `NPR ${Number(b.amount).toLocaleString()}`,
           timeline: b.timeline || "N/A",
-          status: b.status || "PENDING"
+          status: b.status || "PENDING",
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
+          description: b.description,
         })));
       } catch (err) {
         console.error("Failed to fetch bids", err);
@@ -197,7 +209,7 @@ export default function MyBids() {
             <p className="text-sm text-slate-500">Loading bids...</p>
           </div>
         ) : filteredBids.length > 0 ? (
-          filteredBids.map((bid) => <BidCard key={bid.id} bid={bid} />)
+          filteredBids.map((bid) => <BidCard key={bid.id} bid={bid} onView={handleViewBid} />)
         ) : (
           <div className="rounded-xl border border-neutral-100 bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-slate-500">
@@ -257,14 +269,14 @@ export default function MyBids() {
                     </td>
                     <td className="px-6 py-4 text-slate-700">{bid.client}</td>
                     <td className="px-6 py-4 font-bold text-slate-900">
-                      {bid.amount}
+                      {bid.amountDisplay}
                     </td>
                     <td className="px-6 py-4 text-slate-700">{bid.timeline}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={bid.status} />
                     </td>
                     <td className="px-6 py-4">
-                      <BidActions status={bid.status} />
+                      <BidActions bid={bid} onView={handleViewBid} />
                     </td>
                   </tr>
                 ))
